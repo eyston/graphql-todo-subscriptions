@@ -38,6 +38,4 @@ class TodoDatabase {
   }
 }
 
-var db = new TodoDatabase();
-
-export default db;
+export const db = new TodoDatabase();
