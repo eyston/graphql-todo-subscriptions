@@ -69,6 +69,11 @@ class Store extends EventEmitter {
             Object.assign(todo, value.todo);
           }
           break;
+        case 'todos':
+          if (value.todos) {
+            this.state.todos = value.todos;
+          }
+          break;
         default:
           console.log('unhandled subscription key', key);
           break;

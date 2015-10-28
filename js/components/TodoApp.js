@@ -6,6 +6,39 @@ import TodoTextInput from './TodoTextInput';
 import TodoList from './TodoList';
 import Viewer from './Viewer';
 
+const individualSubscriptions = `
+subscription ($clientSubscriptionId: String) {
+  addTodo(clientSubscriptionId: $clientSubscriptionId) {
+    todo {
+      id
+      text
+      completed
+    }
+  }
+  deleteTodo(clientSubscriptionId: $clientSubscriptionId) {
+    deletedTodoId
+  }
+  changeTodoStatus(clientSubscriptionId: $clientSubscriptionId) {
+    todo {
+      id
+      completed
+    }
+  }
+}
+`;
+
+const rollupSubscription = `
+  subscription ($clientSubscriptionId: String) {
+    todos(clientSubscriptionId: $clientSubscriptionId) {
+      todos {
+        id
+        text
+        completed
+      }
+    }
+  }
+`;
+
 export default class TodoApp extends React.Component {
 
   static query() {
@@ -24,26 +57,8 @@ export default class TodoApp extends React.Component {
   }
 
   static subscription() {
-    return `
-      subscription ($clientSubscriptionId: String) {
-        addTodo(clientSubscriptionId: $clientSubscriptionId) {
-          todo {
-            id
-            text
-            completed
-          }
-        }
-        deleteTodo(clientSubscriptionId: $clientSubscriptionId) {
-          deletedTodoId
-        }
-        changeTodoStatus(clientSubscriptionId: $clientSubscriptionId) {
-          todo {
-            id
-            completed
-          }
-        }
-      }
-    `;
+    // return rollupSubscription;
+    return individualSubscriptions;
   }
 
 

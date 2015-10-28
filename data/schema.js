@@ -104,7 +104,7 @@ const AddTodoMutation = {
   },
   resolve: ({user}, {text}) => {
     const todo = db.addTodo(user.id, text);
-    events.emit(`${user.id}.todos.add`, {
+    events.emit(`${user.id}.todo.add`, {
       type: 'TODO_ADD',
       todoId: todo.id
     });
@@ -142,7 +142,7 @@ const AddTodoSubscription = {
       subscription = db.addSubscription(
         client.id,
         clientSubscriptionId,
-        [`${user.id}.todos.add`],
+        [`${user.id}.todo.add`],
         request
       );
 
@@ -302,6 +302,52 @@ const ChangeTodoStatusSubscription = {
   }
 }
 
+const TodosSubscriptionPayloadType = new GraphQLObjectType({
+  name: 'TodosSubscriptionPayloadType',
+  fields: {
+    clientSubscriptionId: {
+      type: GraphQLString,
+      resolve: ({subscription}) => subscription.clientSubscriptionId
+    },
+    subscription: {
+      type: SubscriptionType,
+      resolve: ({subscription}) => subscription
+    },
+    todos: {
+      type: new GraphQLList(TodoType),
+      resolve: ({user}) => db.getTodos(user.id).toArray()
+    }
+  }
+});
+
+const TodoSubscription = {
+  type: TodosSubscriptionPayloadType,
+  args: {
+    clientSubscriptionId: { type: GraphQLString }
+  },
+  resolve: ({user,client,request,event}, {clientSubscriptionId}, {variableValues}) => {
+    let subscription = db.getClientSubscription(client.id, clientSubscriptionId);
+
+    if (!subscription) {
+      subscription = db.addSubscription(
+        client.id,
+        clientSubscriptionId,
+        [`${user.id}.todo.change_status`, `${user.id}.todo.add`, `${user.id}.todo.delete`],
+        request
+      );
+
+      events.emit('subscription.new', {
+        type: 'SUBSCRIPTION_NEW',
+        subscriptionId: subscription.id
+      });
+    }
+
+    return {
+      subscription,
+      user
+    }
+  }
+}
 
 const MutationRootType = new GraphQLObjectType({
   name: 'MutationRoot',
@@ -317,7 +363,8 @@ const SubscriptionRootType = new GraphQLObjectType({
   fields: {
     addTodo: AddTodoSubscription,
     deleteTodo: DeleteTodoSubscription,
-    changeTodoStatus: ChangeTodoStatusSubscription
+    changeTodoStatus: ChangeTodoStatusSubscription,
+    todos: TodoSubscription
   }
 })
 
