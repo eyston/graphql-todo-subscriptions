@@ -10,23 +10,13 @@ export default class TodoTextInput extends React.Component {
   constructor(props) {
     super(props);
     this.props = {
-      commitOnBlur: false
+      commitOnBlur: props.commitOnBlur || false,
     };
     this.state = {
       isEditing: false,
-      text: this.props.initialValue || '',
+      text: props.initialValue || '',
     }
   }
-
-  // WHAT DO I DO TO TELL BABEL I WANT THIS SYNTAX???
-  // static defaultProps = {
-  //   commitOnBlur: false,
-  // }
-  //
-  // state = {
-  //   isEditing: false,
-  //   text: this.props.initialValue || '',
-  // };
 
   componentDidMount() {
     ReactDOM.findDOMNode(this).focus();

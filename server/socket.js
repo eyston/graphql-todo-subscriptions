@@ -5,22 +5,9 @@ import {db} from '../data/database';
 import {schema} from '../data/schema';
 import {events} from '../data/events';
 
-const globalUserId = uuid.v1();
-
 export const connect = (socket) => {
   // generate a random user id for every connection
-  // const userId = uuid.v1();
-  const userId = globalUserId;
-
-  db.initializeUser(userId);
-
-  const user = db.getUser(userId);
-  const client = db.addWebsocketClient(userId, socket.id);
-
-  // LISTEN for incoming back-end subscription events
-  events.on(`${client.id}.graphql.subscription`, response => {
-    socket.emit('graphql:subscription', response);
-  });
+  let {user,client} = initialze(socket, uuid.v1());
 
   // LISTEN to client socket-io requests
   socket.on('graphql:query', request => {
@@ -41,6 +28,17 @@ export const connect = (socket) => {
     });
   });
 
+  socket.on('change_user', data => {
+    deleteClient(client);
+
+    // we want to set user to the new user
+    const context = initialze(socket, data.userId);
+    user = context.user;
+    client = context.client;
+
+    socket.emit('change_user', {});
+  });
+
   // keep alive
   socket.on('ping', data => {
     socket.emit('pong', data);
@@ -48,13 +46,7 @@ export const connect = (socket) => {
 
   // on disconnect clean up the subscriptions / client
   socket.on('disconnect', () => {
-    db.getSubscriptions(client.id).forEach(sub => {
-      db.deleteSubscription(sub.id);
-      events.emit(`subscription.delete.${sub.id}`, {
-        subscriptionId: sub.id
-      });
-    });
-    db.deleteClient(client.id);
+    deleteClient(client);
   });
 
 }
@@ -71,4 +63,33 @@ const handleGraphQLRequest = (user, client, request) => {
   }
 
   return graphql(schema, query, rootValue, variables);
+}
+
+const initialze = (socket, userId) => {
+  db.initializeUser(userId);
+
+  const user = db.getUser(userId);
+  const client = db.addWebsocketClient(userId, socket.id);
+
+  // LISTEN for incoming back-end subscription events
+  events.on(`${client.id}.graphql.subscription`, response => {
+    socket.emit('graphql:subscription', response);
+  });
+
+  return {
+    user,
+    client
+  }
+}
+
+const deleteClient = client => {
+  db.getSubscriptions(client.id).forEach(sub => {
+    db.deleteSubscription(sub.id);
+    events.emit(`subscription.delete.${sub.id}`, {
+      subscriptionId: sub.id
+    });
+  });
+  db.deleteClient(client.id);
+
+  events.removeAllListeners(`${client.id}.graphql.subscription`);
 }

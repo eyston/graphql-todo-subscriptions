@@ -6,12 +6,17 @@ class Store extends EventEmitter {
   constructor() {
     super();
     this.state = {
+      viewer: {},
       todos: []
     }
   }
 
   getTodos() {
     return this.state.todos;
+  }
+
+  getViewer() {
+    return this.state.viewer;
   }
 
   handleQuery(response) {
@@ -62,8 +67,8 @@ class Store extends EventEmitter {
           if (value.todo) {
             let todo = this.state.todos.find(todo => todo.id === value.todo.id);
             Object.assign(todo, value.todo);
-            break;
           }
+          break;
         default:
           console.log('unhandled subscription key', key);
           break;
@@ -76,6 +81,9 @@ class Store extends EventEmitter {
   set(key, data) {
     switch(key) {
       case 'viewer':
+        if (data.id) {
+          this.state.viewer.id = data.id;
+        }
         this.set('todos', data.todos);
         break;
       case 'todos':
@@ -87,6 +95,12 @@ class Store extends EventEmitter {
     }
 
     this.emit('update');
+  }
+
+  changeUser(id) {
+    socket.emit('change_user', {
+      userId: id
+    });
   }
 
   addTodo(text) {

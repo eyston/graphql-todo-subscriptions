@@ -10,6 +10,11 @@ import TodoApp from './components/TodoApp';
 socket.emit('graphql:query', {query: TodoApp.query(), variables: {} });
 socket.emit('graphql:subscription', {query: TodoApp.subscription(), variables: {} });
 
+socket.on('change_user', () => {
+  socket.emit('graphql:query', {query: TodoApp.query(), variables: {} });
+  socket.emit('graphql:subscription', {query: TodoApp.subscription(), variables: {} });
+});
+
 ReactDOM.render(<TodoApp />, document.getElementById('root'));
 
 setInterval(() => {

@@ -4,6 +4,7 @@ import {store} from '../store';
 
 import TodoTextInput from './TodoTextInput';
 import TodoList from './TodoList';
+import Viewer from './Viewer';
 
 export default class TodoApp extends React.Component {
 
@@ -11,6 +12,7 @@ export default class TodoApp extends React.Component {
     return `
       query {
         viewer {
+          id
           todos {
             id
             text
@@ -55,6 +57,7 @@ export default class TodoApp extends React.Component {
 
   updateState() {
     this.setState({
+      viewer: store.getViewer(),
       todos: store.getTodos()
     });
   }
@@ -66,6 +69,8 @@ export default class TodoApp extends React.Component {
   render() {
     return (
       <div>
+        <h3>Viewer</h3>
+        <Viewer viewer={this.state.viewer} />
         <h1>Todos</h1>
         <TodoTextInput
           autoFocus={true}
