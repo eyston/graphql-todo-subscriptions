@@ -10,7 +10,7 @@ import webpackMiddleware from 'webpack-dev-middleware';
 import {connect} from './server/socket';
 import {startWorkers} from './server/workers';
 
-const APP_PORT = 3000;
+const APP_PORT = (process.env.PORT || 3000);
 
 const compiler = webpack({
   entry: path.resolve(__dirname, 'js', 'app.js'),
