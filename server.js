@@ -7,8 +7,8 @@ import {graphql} from 'graphql';
 import webpack from 'webpack';
 import webpackMiddleware from 'webpack-dev-middleware';
 
-import {db} from './data/database';
-import {schema} from './data/schema';
+import {connect} from './server/socket';
+import {startWorkers} from './server/workers';
 
 const APP_PORT = 3000;
 
@@ -28,20 +28,18 @@ const app = express();
 const server = http.Server(app);
 const io = IO(server);
 
-io.on('connection', socket => {
-  socket.on('ping', data => {
-    socket.emit('pong', data);
-  });
+// start back-end workers which will listen for subscription events
+// and execute graphql queries
+startWorkers();
 
-  socket.on('graphql', request => {
-    graphql(schema, request.query, null, request.variables).then(response => {
-      socket.emit('graphql', response);
-    });
-  });
+// start a new client for this socket-io connection
+io.on('connection', socket => {
+  connect(socket);
 });
 
 app.use('/', express.static('public'));
 
+// USING IN PROD, RUNNING WITH SCISSORS
 app.use(webpackMiddleware(compiler, {
   contentBase: '/public/',
   publicPath: '/js',

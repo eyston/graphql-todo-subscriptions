@@ -13,6 +13,7 @@
     "immutable": "^3.7.5",
     "socket.io": "^1.3.7",
     "socket.io-client": "^1.3.7",
+    "uuid": "^2.0.1",
     "webpack": "^1.12.2",
     "webpack-dev-middleware": "^1.2.0"
   }
