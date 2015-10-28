@@ -162,37 +162,162 @@ const AddTodoSubscription = {
         subscription
       }
     }
-
-    return {
-      subscription
-    };
-
   }
 }
 
 const DeleteTodoMutation = {
-  type: GraphQLInt,
+  type: GraphQLString,
   args: {
-    id: { type: GraphQLString },
+    id: { type: new GraphQLNonNull(GraphQLString) }
   },
   resolve: ({user}, {id}) => {
-    db.deleteTodo(user.id, id);
+    db.deleteTodo(id);
+    events.emit(`${user.id}.todo.delete`, {
+      type: 'TODO_DELETE',
+      todoId: id
+    });
     return id
   }
 }
+
+const DeleteTodoSubscriptionPayloadType = new GraphQLObjectType({
+  name: 'DeleteTodoSubscriptionPayload',
+  fields: {
+    clientSubscriptionId: {
+      type: GraphQLString,
+      resolve: ({subscription}) => subscription.clientSubscriptionId
+    },
+    subscription: {
+      type: SubscriptionType,
+      resolve: ({subscription}) => subscription
+    },
+    deletedTodoId: {
+      type: GraphQLString,
+      resolve: ({event}) => event ? event.todoId : null
+    }
+  }
+});
+
+const DeleteTodoSubscription = {
+  type: DeleteTodoSubscriptionPayloadType,
+  args: {
+    clientSubscriptionId: { type: GraphQLString }
+  },
+  resolve: ({user,client,request,event}, {clientSubscriptionId}, {variableValues}) => {
+    let subscription = db.getClientSubscription(client.id, clientSubscriptionId);
+
+    if (!subscription) {
+      subscription = db.addSubscription(
+        client.id,
+        clientSubscriptionId,
+        [`${user.id}.todo.delete`],
+        request
+      );
+
+      events.emit('subscription.new', {
+        type: 'SUBSCRIPTION_NEW',
+        subscriptionId: subscription.id
+      });
+    }
+
+    if (event && event.type === 'TODO_DELETE') {
+      return {
+        subscription,
+        event
+      }
+    } else {
+      return {
+        subscription
+      }
+    }
+  }
+}
+
+const ChangeTodoStatusMutation = {
+  type: TodoType,
+  args: {
+    id: { type: new GraphQLNonNull(GraphQLString) },
+    completed: { type: new GraphQLNonNull(GraphQLBoolean) }
+  },
+  resolve: ({user}, {id, completed}) => {
+    const todo = db.changeTodoStatus(id, completed);
+    events.emit(`${user.id}.todo.change_status`, {
+      type: 'TODO_CHANGE_STATUS',
+      todoId: todo.id
+    });
+    return todo;
+  }
+};
+
+const ChangeTodoStatusSubscriptionPayloadType = new GraphQLObjectType({
+  name: 'ChangeTodoStatusSubscriptionPayload',
+  fields: {
+    clientSubscriptionId: {
+      type: GraphQLString,
+      resolve: ({subscription}) => subscription.clientSubscriptionId
+    },
+    subscription: {
+      type: SubscriptionType,
+      resolve: ({subscription}) => subscription
+    },
+    todo: {
+      type: TodoType,
+      resolve: ({event}) => event ? db.getTodo(event.todoId) : null
+    }
+  }
+});
+
+const ChangeTodoStatusSubscription = {
+  type: ChangeTodoStatusSubscriptionPayloadType,
+  args: {
+    clientSubscriptionId: { type: GraphQLString }
+  },
+  resolve: ({user,client,request,event}, {clientSubscriptionId}, {variableValues}) => {
+    let subscription = db.getClientSubscription(client.id, clientSubscriptionId);
+
+    if (!subscription) {
+      subscription = db.addSubscription(
+        client.id,
+        clientSubscriptionId,
+        [`${user.id}.todo.change_status`],
+        request
+      );
+
+      events.emit('subscription.new', {
+        type: 'SUBSCRIPTION_NEW',
+        subscriptionId: subscription.id
+      });
+    }
+
+    if (event && event.type === 'TODO_CHANGE_STATUS') {
+      return {
+        subscription,
+        event
+      }
+    } else {
+      return {
+        subscription
+      }
+    }
+  }
+}
+
 
 const MutationRootType = new GraphQLObjectType({
   name: 'MutationRoot',
   fields: {
     addTodo: AddTodoMutation,
-    deleteTodo: DeleteTodoMutation
+    deleteTodo: DeleteTodoMutation,
+    changeTodoStatus: ChangeTodoStatusMutation
   }
 });
 
 const SubscriptionRootType = new GraphQLObjectType({
   name: 'SubscriptionRoot',
   fields: {
-    addTodo: AddTodoSubscription
+    addTodo: AddTodoSubscription,
+    deleteTodo: DeleteTodoSubscription,
+    changeTodoStatus: ChangeTodoStatusSubscription
   }
 })
 

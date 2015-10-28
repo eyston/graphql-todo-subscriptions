@@ -171,6 +171,14 @@ class TodoDatabase {
     return todo;
   }
 
+  changeTodoStatus(todoId, completed) {
+    this.data = this.data.updateIn(['todos', todoId], todo => {
+      return todo.set('completed', completed);
+    });
+
+    return this.getTodo(todoId);
+  }
+
   deleteTodo(todoId) {
     const todo = this.getTodo(todoId);
 
@@ -188,18 +196,18 @@ class TodoDatabase {
   // MISC
 
   addIndex(from, name, id) {
-    this.data = this.data.updateIn(['indexes', from, name], Set(), ids => {
-      return ids.add(id);
+    this.data = this.data.updateIn(['indexes', from, name], List(), ids => {
+      return ids.push(id);
     });
   }
 
   getIndex(from, name) {
-    return this.data.getIn(['indexes', from, name], Set());
+    return this.data.getIn(['indexes', from, name], List());
   }
 
   deleteIndex(from, name, id) {
-    this.data = this.data.updateIn(['indexes', from, name], Set(), ids => {
-      return ids.delete(id);
+    this.data = this.data.updateIn(['indexes', from, name], List(), ids => {
+      return ids.filter(i => i !== id);
     });
   }
 
