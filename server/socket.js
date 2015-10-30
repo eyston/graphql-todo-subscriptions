@@ -46,9 +46,7 @@ export const connect = (socket) => {
 
   // on disconnect clean up the subscriptions / client
   socket.on('disconnect', () => {
-    db.deleteClient(client.id);
-
-    events.removeAllListeners(`${client.id}.graphql.subscription`);
+    deleteClient(client);
   });
 
 }
@@ -84,4 +82,10 @@ const initialze = (socket, userId) => {
     user,
     client
   }
+}
+
+const deleteClient = (client) => {
+  db.deleteClient(client.id);
+
+  events.removeAllListeners(`${client.id}.graphql.subscription`);
 }
