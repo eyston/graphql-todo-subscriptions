@@ -7,12 +7,12 @@ import {socket} from './socket';
 
 import TodoApp from './components/TodoApp';
 
-socket.emit('graphql:query', {query: TodoApp.query(), variables: {} });
-socket.emit('graphql:subscription', {query: TodoApp.subscription(), variables: {} });
-
 socket.on('change_user', () => {
-  socket.emit('graphql:query', {query: TodoApp.query(), variables: {} });
-  socket.emit('graphql:subscription', {query: TodoApp.subscription(), variables: {} });
+  store.initialize();
+});
+
+socket.on('connect', () => {
+  store.initialize();
 });
 
 ReactDOM.render(<TodoApp />, document.getElementById('root'));

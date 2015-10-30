@@ -1,6 +1,8 @@
 import {Map,List,Record,Set} from 'immutable';
 import uuid from 'uuid';
 
+import {events} from './events';
+
 class User extends Record({
   id: undefined
 }) { }
@@ -73,6 +75,9 @@ class TodoDatabase {
     this.data = this.data.setIn(['clients', client.id], client);
     this.addIndex(userId, 'clients', client.id);
 
+    events.emit(`client.new`, { clientId: client.id });
+    events.emit(`${userId}.client.add`, { clientId: client.id });
+
     return client;
   }
 
@@ -88,9 +93,16 @@ class TodoDatabase {
     const client = this.getClient(clientId);
 
     if (client) {
+      this.getSubscriptions(client.id).forEach(sub => {
+        this.deleteSubscription(sub.id);
+      });
+
       this.data = this.data.deleteIn(['clients', client.id]);
       this.deleteIndexes(client.id);
       this.deleteIndex(client.userId, 'clients', client.id);
+
+      events.emit(`client.delete.${clientId}`, { clientId: client.id });
+      events.emit(`${client.userId}.client.remove`, {clientId: client.id});
 
       return true;
     } else {
@@ -118,18 +130,24 @@ class TodoDatabase {
   addSubscription(
     clientId,
     clientSubscriptionId = uuid.v1(),
-    events,
+    subscribedEvents,
     request) {
     const subscription = new Subscription({
       id: uuid.v1(),
       clientSubscriptionId,
       clientId,
-      events,
+      events: subscribedEvents,
       request
     });
 
     this.data = this.data.setIn(['subscriptions', subscription.id], subscription);
     this.addIndex(clientId, 'subscriptions', subscription.id);
+
+    events.emit('subscription.new', { subscriptionId: subscription.id });
+
+    const client = db.getClient(clientId);
+    events.emit(`${client.id}.subscription.add`, { subscriptionId: subscription.id });
+    events.emit(`${client.userId}.subscription.add`, { subscriptionId: subscription.id });
 
     return subscription;
   }
@@ -141,6 +159,11 @@ class TodoDatabase {
       this.data = this.data.deleteIn(['subscriptions', sub.id]);
       this.deleteIndexes(sub.id);
       this.deleteIndex(sub.clientId, 'subscriptions', sub.id);
+
+      events.emit(`subscription.delete.${sub.id}`, { subscriptionId: sub.id });
+      const client = db.getClient(sub.clientId);
+      events.emit(`${client.id}.subscription.remove`, { subscriptionId: sub.id, clientId: client.id });
+      events.emit(`${client.userId}.subscription.remove`, { subscriptionId: sub.id, userId: client.userId });
 
       return true;
     } else {
@@ -168,6 +191,9 @@ class TodoDatabase {
     this.data = this.data.setIn(['todos', todo.id], todo);
     this.addIndex(userId, 'todos', todo.id);
 
+    events.emit(`todo.new`, { todoId: todo.id });
+    events.emit(`${userId}.todo.add`, { todoId: todo.id, userId: userId });
+
     return todo;
   }
 
@@ -175,6 +201,11 @@ class TodoDatabase {
     this.data = this.data.updateIn(['todos', todoId], todo => {
       return todo.set('completed', completed);
     });
+
+    const todo = this.getTodo(todoId);
+    events.emit(`todo.change_status.${todo.id}`, { todoId: todo.id });
+    events.emit(`${todo.userId}.todo.change_status`, { todoId: todo.id, userId: todo.userId });
+
 
     return this.getTodo(todoId);
   }
@@ -186,6 +217,9 @@ class TodoDatabase {
       this.data = this.data.deleteIn(['todos', todo.id]);
       this.deleteIndexes(todo.id);
       this.deleteIndex(todo.userId, 'todos', todo.id);
+
+      events.emit(`todo.delete.${todo.id}`, { todoId: todo.id });
+      events.emit(`${todo.userId}.todo.remove`, { todoId: todo.id, userId: todo.userId });
 
       return true;
     } else {

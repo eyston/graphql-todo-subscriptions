@@ -9,6 +9,7 @@ import webpackMiddleware from 'webpack-dev-middleware';
 
 import {connect} from './server/socket';
 import {startWorkers} from './server/workers';
+import {events} from './data/events';
 
 const APP_PORT = (process.env.PORT || 3000);
 

@@ -2,27 +2,56 @@ import EventEmitter from 'events';
 
 import {socket} from '../socket';
 
+import {
+  queryAll,
+  individualSubscriptions,
+  rollupSubscription,
+  subscriptionSubscription
+} from './queries'
+
 class Store extends EventEmitter {
   constructor() {
     super();
-    this.state = {
-      viewer: {},
-      todos: []
-    }
+    this.state = { }
+  }
+
+  initialize() {
+    socket.emit('graphql:query', queryAll());
+    socket.emit('graphql:subscription', individualSubscriptions());
+    socket.emit('graphql:subscription', subscriptionSubscription());
+  }
+
+  refresh() {
+    socket.emit('graphql:query', queryAll());
   }
 
   getTodos() {
-    return this.state.todos;
+    let viewer = this.getViewer();
+    if (!viewer.todos) {
+      viewer.todos = [];
+    }
+    return viewer.todos;
   }
 
   getViewer() {
+    if (!this.state.viewer) {
+      this.state.viewer = {};
+    }
     return this.state.viewer;
   }
 
+  getClients() {
+    let viewer = this.getViewer();
+    if (!viewer.clients) {
+      viewer.clients = [];
+    }
+    return viewer.clients;
+  }
+
   handleQuery(response) {
-    Object.keys(response.data).forEach(key => {
-      this.set(key, response.data[key]);
-    });
+    this.state = response.data;
+
+    this.emit('update');
   }
 
   handleMutation(response) {
@@ -30,14 +59,15 @@ class Store extends EventEmitter {
       const value = response.data[key];
       switch(key) {
         case 'addTodo':
-          this.state.todos = append(this.state.todos, value);
+          append(this.getTodos(), value);
           break;
         case 'changeTodoStatus':
-          let todo = this.state.todos.find(todo => todo.id === value.id);
+          let todo = this.getTodos().find(todo => todo.id === value.id);
           Object.assign(todo, value);
           break;
         case 'deleteTodo':
-          this.state.todos = this.state.todos.filter(todo => todo.id !== value);
+          let todos = this.getTodos();
+          this.state.viewer.todos = todos.filter(todo => todo.id !== value);
           break;
         default:
           console.log('unhandled mutation key', key);
@@ -54,24 +84,29 @@ class Store extends EventEmitter {
       switch(key) {
         case 'addTodo':
           if (value.todo) {
-            this.state.todos = append(this.state.todos, value.todo);
+            append(this.getTodos(), value.todo);
           }
           break;
         case 'deleteTodo':
           if (value.deletedTodoId) {
-            this.state.todos = this.state.todos
-              .filter(todo => todo.id !== value.deletedTodoId);
+            let todos = this.getTodos();
+            this.state.viewer.todos = todos.filter(todo => todo.id !== value.deletedTodoId);
           }
           break;
         case 'changeTodoStatus':
           if (value.todo) {
-            let todo = this.state.todos.find(todo => todo.id === value.todo.id);
+            let todo = this.getTodos().find(todo => todo.id === value.todo.id);
             Object.assign(todo, value.todo);
           }
           break;
         case 'todos':
           if (value.todos) {
-            this.state.todos = value.todos;
+            this.state.viewer.todos = value.todos;
+          }
+          break;
+        case 'subscriptions':
+          if (value.clients) {
+            this.state.viewer.clients = value.clients;
           }
           break;
         default:
@@ -79,25 +114,6 @@ class Store extends EventEmitter {
           break;
       }
     });
-
-    this.emit('update');
-  }
-
-  set(key, data) {
-    switch(key) {
-      case 'viewer':
-        if (data.id) {
-          this.state.viewer.id = data.id;
-        }
-        this.set('todos', data.todos);
-        break;
-      case 'todos':
-        this.state.todos = data;
-        break;
-      default:
-        console.log('unhandled key', key);
-        break;
-    }
 
     this.emit('update');
   }
@@ -154,10 +170,8 @@ class Store extends EventEmitter {
 
 const append = (list, item) => {
   const listContainsItem = list.some(element => element.id === item.id);
-  if (listContainsItem) {
-    return list;
-  } else {
-    return list.concat([item]);
+  if (!listContainsItem) {
+    list.push(item);
   }
 }
 

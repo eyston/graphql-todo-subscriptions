@@ -1,44 +1,48 @@
 import {graphql} from 'graphql';
+import {Map,List,Record} from 'immutable';
 
 import {schema} from '../data/schema';
 import {db} from '../data/database';
 import {events} from '../data/events';
 
+// keep track of subscription handlers so we can remove them!
+let handlers = Map();
+
+const Handler = Record({type: undefined, callback: undefined });
+
 export const startWorkers = () => {
   events.on('subscription.new', handleSubscriptionNew);
-}
-
-export const stopWorkers = () => {
-  events.removeListener('subscription.new', handleSubscriptionNew);
+  events.on('subscription.delete.*', handleSubscriptionDelete);
 }
 
 // when a new subscription is made we start up a listener
 // for each of the subscription events
-//
-// when the subscription is deleted we remove all those listeners
 const handleSubscriptionNew = ({subscriptionId}) => {
   const subscription = db.getSubscription(subscriptionId);
 
-  const handlers = subscription.events.map(ev => {
-    const handler = {
-      type: ev,
-      callback: handleSubscriptionEvent.bind(null, subscription)
-    };
+  handlers = handlers.set(
+    subscriptionId,
+    List(subscription.events).map(ev => {
+      return Handler({
+        type: ev,
+        callback: handleSubscriptionEvent.bind(null, subscription)
+      });
+    })
+  );
 
-    events.on(handler.type, handler.callback);
+  // start'em up!
+  handlers
+    .get(subscriptionId)
+    .forEach(handler => events.on(handler.type, handler.callback))
+}
 
-    return handler;
+// when the subscription is deleted we remove all those listeners
+const handleSubscriptionDelete = ({subscriptionId}) => {
+  handlers.get(subscriptionId).forEach(handler => {
+    events.removeListener(handler.type, handler.callback);
   });
 
-  const removeEvent = `subscription.delete.${subscription.id}`;
-  const removeHandlers = () => {
-    events.removeListener(removeEvent, removeHandlers);
-    handlers.forEach(handler => {
-      events.removeListener(handler.type, handler.callback);
-    });
-  }
-
-  events.on(removeEvent, removeHandlers)
+  handlers = handlers.delete(subscriptionId);
 }
 
 // when an event the subscription is listening for happens we execute
@@ -51,28 +55,25 @@ const handleSubscriptionNew = ({subscriptionId}) => {
 // in this app that would be the socket-io client which is listening
 // for any and all subscription events for its own client id
 const handleSubscriptionEvent = (subscription, event) => {
-  const {query,variables} = subscription.request;
   const client = db.getClient(subscription.clientId);
   const user = db.getUser(client.userId);
 
-  const variablesWithSubId = {
-    clientSubscriptionId: subscription.clientSubscriptionId,
-    ...variables
-  };
+  const {request,clientSubscriptionId} = subscription;
+  const {query,variables} = request;
 
   const rootValue = {
     user,
     client,
 
-    request: {
-      query,
-      variables: variablesWithSubId
-    },
+    request,
 
-    event
+    subscription: {
+      clientSubscriptionId,
+      event
+    }
   }
 
-  graphql(schema, query, rootValue, variablesWithSubId)
+  graphql(schema, query, rootValue, variables)
     .then(response => {
       events.emit(`${subscription.clientId}.graphql.subscription`, response);
     });

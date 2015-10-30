@@ -46,7 +46,9 @@ export const connect = (socket) => {
 
   // on disconnect clean up the subscriptions / client
   socket.on('disconnect', () => {
-    deleteClient(client);
+    db.deleteClient(client.id);
+
+    events.removeAllListeners(`${client.id}.graphql.subscription`);
   });
 
 }
@@ -70,6 +72,8 @@ const initialze = (socket, userId) => {
 
   const user = db.getUser(userId);
   const client = db.addWebsocketClient(userId, socket.id);
+  events.emit(`${client.userId}.client.add`, { clientId: client.id });
+
 
   // LISTEN for incoming back-end subscription events
   events.on(`${client.id}.graphql.subscription`, response => {
@@ -80,16 +84,4 @@ const initialze = (socket, userId) => {
     user,
     client
   }
-}
-
-const deleteClient = client => {
-  db.getSubscriptions(client.id).forEach(sub => {
-    db.deleteSubscription(sub.id);
-    events.emit(`subscription.delete.${sub.id}`, {
-      subscriptionId: sub.id
-    });
-  });
-  db.deleteClient(client.id);
-
-  events.removeAllListeners(`${client.id}.graphql.subscription`);
 }
