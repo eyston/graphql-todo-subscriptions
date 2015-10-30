@@ -1,6 +1,7 @@
 {
   "private": true,
   "scripts": {
+    "postinstall": "webpack -p --config webpack.config.js",
     "start": "babel-node ./server.js"
   },
   "dependencies": {

@@ -11,6 +11,7 @@ import {connect} from './server/socket';
 import {startWorkers} from './server/workers';
 import {events} from './data/events';
 
+const isProduction = process.env.NODE_ENV === 'production';
 const APP_PORT = (process.env.PORT || 3000);
 
 const compiler = webpack({
@@ -38,14 +39,17 @@ io.on('connection', socket => {
   connect(socket);
 });
 
-app.use('/', express.static('public'));
+app.use(express.static('public'));
 
-// USING IN PROD, RUNNING WITH SCISSORS
-app.use(webpackMiddleware(compiler, {
-  contentBase: '/public/',
-  publicPath: '/js',
-  stats: {colors: true}
-}));
+if (isProduction) {
+  app.use(express.static('dist'));
+} else {
+  app.use(webpackMiddleware(compiler, {
+    contentBase: '/public/',
+    publicPath: '/js',
+    stats: {colors: true}
+  }));
+}
 
 server.listen(APP_PORT, () => {
   console.log(`App is now running on http://localhost:${APP_PORT}`);
