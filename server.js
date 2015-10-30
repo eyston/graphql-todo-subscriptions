@@ -1,6 +1,7 @@
 import path from 'path';
 
 import express from 'express';
+import compression from 'compression';
 import http from 'http';
 import IO from 'socket.io';
 import {graphql} from 'graphql';
@@ -39,6 +40,7 @@ io.on('connection', socket => {
   connect(socket);
 });
 
+app.use(compression());
 app.use(express.static('public'));
 
 if (isProduction) {
