@@ -102,61 +102,17 @@ const AddTodoMutation = {
   }
 };
 
-const AddTodoSubscriptionPayloadType = new GraphQLObjectType({
-  name: 'AddTodoSubscriptionPayload',
-  fields: {
-    clientSubscriptionId: {
-      type: GraphQLString,
-      resolve: ({subscription}) => subscription.clientSubscriptionId
-    },
-    subscription: {
-      type: SubscriptionType,
-      resolve: ({subscription}) => subscription
-    },
-    todo: {
-      type: TodoType,
-      resolve: ({event}) => event ? db.getTodo(event.todoId) : null
-    }
-  }
-});
-
-// the subscription root has the form of:
-// {
-//   event: event payload, can be null,
-//   clientSubscriptionId: the client subscription id corresponding to the event payload
-// }
-//
-// if a query is being run in response to a subscription then the client ids will match
-// if so, this event belongs to the subscription
-// if not, the event does not belong to the subscription and the subscription
-// should return an empty event payload
-const eventForClientSubscriptionId = (subscriptionRoot, clientSubscriptionId) => {
-  if (subscriptionRoot && subscriptionRoot.clientSubscriptionId === clientSubscriptionId) {
-    return subscriptionRoot.event
-  }
-}
-
 const AddTodoSubscription = {
-  type: AddTodoSubscriptionPayloadType,
-  args: {
-    clientSubscriptionId: { type: GraphQLString }
-  },
-  resolve: ({user,client,request,subscription:subscriptionRoot}, {clientSubscriptionId}) => {
-    let subscription = db.getClientSubscription(client.id, clientSubscriptionId);
-
-    if (!subscription) {
-      subscription = db.addSubscription(
-        client.id,
-        clientSubscriptionId,
-        [`${user.id}.todo.add`],
-        request
-      );
+  type: TodoType,
+  resolve: ({user,client,subscription}) => {
+    if (subscription.mode === 'INITIALIZE') {
+      events.on(`${user.id}.todo.add`, ev => subscription.events.onNext(ev));
     }
 
-    return {
-      subscription,
-      event: eventForClientSubscriptionId(subscriptionRoot, clientSubscriptionId)
-    };
+    const event = subscription.event;
+    const todoId = event && event.type === 'USER_TODO_ADD' && event.todoId;
+
+    return todoId ? db.getTodo(todoId) : null;
   }
 }
 
@@ -172,45 +128,17 @@ const DeleteTodoMutation = {
   }
 }
 
-const DeleteTodoSubscriptionPayloadType = new GraphQLObjectType({
-  name: 'DeleteTodoSubscriptionPayload',
-  fields: {
-    clientSubscriptionId: {
-      type: GraphQLString,
-      resolve: ({subscription}) => subscription.clientSubscriptionId
-    },
-    subscription: {
-      type: SubscriptionType,
-      resolve: ({subscription}) => subscription
-    },
-    deletedTodoId: {
-      type: GraphQLString,
-      resolve: ({event}) => event ? event.todoId : null
-    }
-  }
-});
-
 const DeleteTodoSubscription = {
-  type: DeleteTodoSubscriptionPayloadType,
-  args: {
-    clientSubscriptionId: { type: new GraphQLNonNull(GraphQLString) }
-  },
-  resolve: ({user,client,request,subscription:subscriptionRoot}, {clientSubscriptionId}, {variableValues}) => {
-    let subscription = db.getClientSubscription(client.id, clientSubscriptionId);
-
-    if (!subscription) {
-      subscription = db.addSubscription(
-        client.id,
-        clientSubscriptionId,
-        [`${user.id}.todo.remove`],
-        request
-      );
+  type: GraphQLString,
+  resolve: ({user,client,subscription}) => {
+    if (subscription.mode === 'INITIALIZE') {
+      events.on(`${user.id}.todo.remove`, ev => subscription.events.onNext(ev));
     }
 
-    return {
-      subscription,
-      event: eventForClientSubscriptionId(subscriptionRoot, clientSubscriptionId)
-    };
+    const event = subscription.event;
+    const todoId = event && event.type === 'USER_TODO_REMOVE' && event.todoId;
+
+    return todoId ? todoId : null;
   }
 }
 
@@ -225,45 +153,17 @@ const ChangeTodoStatusMutation = {
   }
 };
 
-const ChangeTodoStatusSubscriptionPayloadType = new GraphQLObjectType({
-  name: 'ChangeTodoStatusSubscriptionPayload',
-  fields: {
-    clientSubscriptionId: {
-      type: GraphQLString,
-      resolve: ({subscription}) => subscription.clientSubscriptionId
-    },
-    subscription: {
-      type: SubscriptionType,
-      resolve: ({subscription}) => subscription
-    },
-    todo: {
-      type: TodoType,
-      resolve: ({event}) => event ? db.getTodo(event.todoId) : null
-    }
-  }
-});
-
 const ChangeTodoStatusSubscription = {
-  type: ChangeTodoStatusSubscriptionPayloadType,
-  args: {
-    clientSubscriptionId: { type: new GraphQLNonNull(GraphQLString) }
-  },
-  resolve: ({user,client,request,subscription:subscriptionRoot}, {clientSubscriptionId}, {variableValues}) => {
-    let subscription = db.getClientSubscription(client.id, clientSubscriptionId);
-
-    if (!subscription) {
-      subscription = db.addSubscription(
-        client.id,
-        clientSubscriptionId,
-        [`${user.id}.todo.change_status`],
-        request
-      );
+  type: TodoType,
+  resolve: ({user,client,request,subscription}) => {
+    if (subscription.mode === 'INITIALIZE') {
+      events.on(`${user.id}.todo.change_status`, ev => subscription.events.onNext(ev));
     }
 
-    return {
-      subscription,
-      event: eventForClientSubscriptionId(subscriptionRoot, clientSubscriptionId)
-    };
+    const event = subscription.event;
+    const todoId = event && event.type === 'USER_TODO_CHANGE_STATUS' && event.todoId;
+
+    return todoId ? db.getTodo(todoId) : null;
   }
 }
 

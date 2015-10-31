@@ -9,7 +9,6 @@ import webpack from 'webpack';
 import webpackMiddleware from 'webpack-dev-middleware';
 
 import {connect} from './server/socket';
-import {startWorkers} from './server/workers';
 import {events} from './data/events';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -30,10 +29,6 @@ const compiler = webpack({
 const app = express();
 const server = http.Server(app);
 const io = IO(server);
-
-// start back-end workers which will listen for subscription events
-// and execute graphql queries
-startWorkers();
 
 // start a new client for this socket-io connection
 io.on('connection', socket => {

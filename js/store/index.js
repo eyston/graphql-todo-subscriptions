@@ -83,20 +83,20 @@ class Store extends EventEmitter {
       const value = response.data[key];
       switch(key) {
         case 'addTodo':
-          if (value.todo) {
-            append(this.getTodos(), value.todo);
+          if (value) {
+            append(this.getTodos(), value);
           }
           break;
         case 'deleteTodo':
-          if (value.deletedTodoId) {
+          if (value) {
             let todos = this.getTodos();
-            this.state.viewer.todos = todos.filter(todo => todo.id !== value.deletedTodoId);
+            this.state.viewer.todos = todos.filter(todo => todo.id !== value);
           }
           break;
         case 'changeTodoStatus':
-          if (value.todo) {
-            let todo = this.getTodos().find(todo => todo.id === value.todo.id);
-            Object.assign(todo, value.todo);
+          if (value && value.id) {
+            let todo = this.getTodos().find(todo => todo.id === value.id);
+            Object.assign(todo, value);
           }
           break;
         case 'todos':

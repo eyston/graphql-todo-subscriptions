@@ -30,33 +30,20 @@ export const queryAll = () => ({
 
 export const individualSubscriptions = () => ({
   query: `
-    subscription (
-        $addTodoSubscriptionId: String!,
-        $deleteTodoSubscriptionId: String!,
-        $changeTodoSubscriptionId: String!) {
-      addTodo(clientSubscriptionId: $addTodoSubscriptionId) {
-        todo {
-          id
-          text
-          completed
-        }
+    subscription {
+      addTodo {
+        id
+        text
+        completed
       }
-      deleteTodo(clientSubscriptionId: $deleteTodoSubscriptionId) {
-        deletedTodoId
-      }
-      changeTodoStatus(clientSubscriptionId: $changeTodoSubscriptionId) {
-        todo {
-          id
-          completed
-        }
+      deleteTodo
+      changeTodoStatus {
+        id
+        completed
       }
     }
   `,
-  variables: {
-    addTodoSubscriptionId: generateSubId(),
-    deleteTodoSubscriptionId: generateSubId(),
-    changeTodoSubscriptionId: generateSubId()
-  }
+  variables: { }
 })
 
 export const rollupSubscription = () => ({
